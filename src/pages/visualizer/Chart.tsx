@@ -7,6 +7,7 @@ import HighchartsReact from 'highcharts-react-official';
 import merge from 'lodash/merge';
 import { ReactNode, useMemo } from 'react';
 import { useActualColorScheme } from '../../hooks/use-actual-color-scheme.ts';
+import { useStore } from '../../store.ts';
 import { formatNumber } from '../../utils/format.ts';
 import { VisualizerCard } from './VisualizerCard.tsx';
 
@@ -48,10 +49,27 @@ interface ChartProps {
   series: Highcharts.SeriesOptionsType[];
   min?: number;
   max?: number;
+  height?: number;
 }
 
-export function Chart({ title, options, series, min, max }: ChartProps): ReactNode {
+export function Chart({ title, options, series, min, max, height = 400 }: ChartProps): ReactNode {
   const colorScheme = useActualColorScheme();
+  const algorithm = useStore(state => state.algorithm);
+
+  const dayBoundaries = useMemo((): number[] => {
+    if (!algorithm) return [];
+    const boundaries: number[] = [];
+    let currentDay = algorithm.activityLogs[0]?.day;
+    let lastTimestamp = algorithm.activityLogs[0]?.timestamp;
+    for (const row of algorithm.activityLogs) {
+      if (row.day !== currentDay) {
+        boundaries.push(lastTimestamp);
+        currentDay = row.day;
+      }
+      lastTimestamp = row.timestamp;
+    }
+    return boundaries;
+  }, [algorithm]);
 
   const fullOptions = useMemo((): Highcharts.Options => {
     const themeOptions = colorScheme === 'light' ? {} : getThemeOptions(HighchartsHighContrastDarkTheme);
@@ -59,7 +77,7 @@ export function Chart({ title, options, series, min, max }: ChartProps): ReactNo
     const chartOptions: Highcharts.Options = {
       chart: {
         animation: false,
-        height: 400,
+        height,
         zooming: {
           type: 'x',
         },
@@ -127,6 +145,18 @@ export function Chart({ title, options, series, min, max }: ChartProps): ReactNo
         labels: {
           formatter: params => formatNumber(params.value as number),
         },
+        plotLines: dayBoundaries.map(ts => ({
+          value: ts,
+          width: 2,
+          color: colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.35)',
+          dashStyle: 'Dash' as const,
+          zIndex: 5,
+          label: {
+            text: 'Day end',
+            rotation: 0,
+            style: { fontSize: '11px' },
+          },
+        })),
       },
       yAxis: {
         opposite: false,
@@ -156,7 +186,7 @@ export function Chart({ title, options, series, min, max }: ChartProps): ReactNo
     };
 
     return merge(themeOptions, chartOptions);
-  }, [colorScheme, title, options, series, min, max]);
+  }, [colorScheme, title, options, series, min, max, height, dayBoundaries]);
 
   return (
     <VisualizerCard p={0}>
