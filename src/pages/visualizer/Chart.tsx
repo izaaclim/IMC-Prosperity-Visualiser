@@ -57,10 +57,10 @@ export function Chart({ title, options, series, min, max, height = 400 }: ChartP
   const algorithm = useStore(state => state.algorithm);
 
   const dayBoundaries = useMemo((): number[] => {
-    if (!algorithm) return [];
+    if (!algorithm || algorithm.activityLogs.length === 0) return [];
     const boundaries: number[] = [];
-    let currentDay = algorithm.activityLogs[0]?.day;
-    let lastTimestamp = algorithm.activityLogs[0]?.timestamp;
+    let currentDay = algorithm.activityLogs[0].day;
+    let lastTimestamp = algorithm.activityLogs[0].timestamp;
     for (const row of algorithm.activityLogs) {
       if (row.day !== currentDay) {
         boundaries.push(lastTimestamp);
